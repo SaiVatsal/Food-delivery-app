@@ -13,8 +13,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Zwiggy | Fastest Food Delivery Near You",
-  description: "Order biryani, pizza, north Indian and south Indian meals from top restaurants with live tracking.",
+  title: "Tastevio | Fastest Food Delivery Near You",
+  description: "Order biryani, pizza, north Indian and south Indian meals from top restaurants with live tracking on Tastevio.",
 };
 
 export default function RootLayout({

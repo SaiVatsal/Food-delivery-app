@@ -43,10 +43,9 @@ function LoginForm() {
     }
   };
 
-  const handleQuickLogin = async (userType: "admin" | "demo") => {
+  const handleQuickLogin = async (targetEmail: string, role: "admin" | "user" = "user") => {
     setLoading(true);
-    const targetEmail = userType === "admin" ? "admin@example.com" : "demo@example.com";
-    const targetPass = userType === "admin" ? "AdminPass123!" : "DemoPass123!";
+    const targetPass = "Bitcoin@100";
     setEmail(targetEmail);
     setPassword(targetPass);
 
@@ -63,11 +62,11 @@ function LoginForm() {
       }
 
       toast.success(
-        userType === "admin"
-          ? "Logged in as Admin! Redirecting..."
+        role === "admin"
+          ? "Logged in as Admin (Charan)! Redirecting to Dashboard..."
           : `Welcome back, ${data.user.name}!`
       );
-      const targetUrl = userType === "admin" && callbackUrl === "/" ? "/admin" : callbackUrl;
+      const targetUrl = role === "admin" && callbackUrl === "/" ? "/admin" : callbackUrl;
       router.push(targetUrl);
       router.refresh();
     } catch (err: unknown) {
@@ -80,7 +79,7 @@ function LoginForm() {
   return (
     <div className="w-full max-w-sm">
       <div className="text-center mb-6">
-        <h1 className="text-2xl font-black text-[#1C1C1C]">Sign In to Zwiggy</h1>
+        <h1 className="text-2xl font-black text-[#1C1C1C]">Sign In to Tastevio</h1>
         <p className="text-xs text-[#696969] mt-1">
           Enjoy live food delivery from top restaurants
         </p>
@@ -93,30 +92,67 @@ function LoginForm() {
             <div className="flex items-center justify-between mb-2">
               <p className="font-bold text-[#1C1C1C] text-[11px] flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-[#2E7D32] animate-pulse" />
-                1-Click Instant Login (No Database Needed):
+                Quick Test Logins (Password: Bitcoin@100):
               </p>
               <span className="text-[10px] text-[#696969] bg-[#FFFFFF] px-1.5 py-0.5 rounded border border-[#E8E8E8]">
                 Demo Mode
               </span>
             </div>
-            <div className="grid grid-cols-2 gap-2">
+            
+            {/* Admin Button */}
+            <div className="mb-2">
               <button
                 type="button"
                 disabled={loading}
-                onClick={() => handleQuickLogin("demo")}
-                className="py-2.5 px-2 rounded-[6px] bg-[#FFFFFF] border border-[#E8E8E8] font-bold text-xs text-[#1C1C1C] hover:border-[#1C1C1C] hover:bg-[#FAF9F6] transition-all cursor-pointer shadow-2xs flex flex-col items-center justify-center gap-0.5 disabled:opacity-50"
+                onClick={() => handleQuickLogin("charan@admin.com", "admin")}
+                className="w-full py-2 px-3 rounded-[6px] bg-[#FFFFFF] border border-[#E23744]/40 font-bold text-xs text-[#E23744] hover:border-[#E23744] hover:bg-[#E23744]/5 transition-all cursor-pointer shadow-2xs flex items-center justify-between disabled:opacity-50"
               >
-                <span>👤 Demo User</span>
-                <span className="text-[10px] text-[#696969] font-normal">Customer Mode</span>
+                <span>👑 Charan (Admin)</span>
+                <span className="text-[10px] text-[#E23744]/70">charan@admin.com</span>
+              </button>
+            </div>
+
+            {/* Customer Buttons */}
+            <div className="grid grid-cols-2 gap-1.5">
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => handleQuickLogin("charan@tastevio.com", "user")}
+                className="py-1.5 px-2 rounded-[6px] bg-[#FFFFFF] border border-[#E8E8E8] font-bold text-[11px] text-[#1C1C1C] hover:border-[#1C1C1C] transition-all cursor-pointer text-left truncate disabled:opacity-50"
+              >
+                👤 Charan
               </button>
               <button
                 type="button"
                 disabled={loading}
-                onClick={() => handleQuickLogin("admin")}
-                className="py-2.5 px-2 rounded-[6px] bg-[#FFFFFF] border border-[#E23744]/40 font-bold text-xs text-[#E23744] hover:border-[#E23744] hover:bg-[#E23744]/5 transition-all cursor-pointer shadow-2xs flex flex-col items-center justify-center gap-0.5 disabled:opacity-50"
+                onClick={() => handleQuickLogin("sai@tastevio.com", "user")}
+                className="py-1.5 px-2 rounded-[6px] bg-[#FFFFFF] border border-[#E8E8E8] font-bold text-[11px] text-[#1C1C1C] hover:border-[#1C1C1C] transition-all cursor-pointer text-left truncate disabled:opacity-50"
               >
-                <span>👑 Admin User</span>
-                <span className="text-[10px] text-[#E23744]/70 font-normal">Dashboard Mode</span>
+                👤 Sai
+              </button>
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => handleQuickLogin("sitaram@tastevio.com", "user")}
+                className="py-1.5 px-2 rounded-[6px] bg-[#FFFFFF] border border-[#E8E8E8] font-bold text-[11px] text-[#1C1C1C] hover:border-[#1C1C1C] transition-all cursor-pointer text-left truncate disabled:opacity-50"
+              >
+                👤 Sita Ram
+              </button>
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => handleQuickLogin("priya@tastevio.com", "user")}
+                className="py-1.5 px-2 rounded-[6px] bg-[#FFFFFF] border border-[#E8E8E8] font-bold text-[11px] text-[#1C1C1C] hover:border-[#1C1C1C] transition-all cursor-pointer text-left truncate disabled:opacity-50"
+              >
+                👤 Priya
+              </button>
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => handleQuickLogin("kalifia@tastevio.com", "user")}
+                className="col-span-2 py-1.5 px-2 rounded-[6px] bg-[#FFFFFF] border border-[#E8E8E8] font-bold text-[11px] text-[#1C1C1C] hover:border-[#1C1C1C] transition-all cursor-pointer text-left truncate disabled:opacity-50"
+              >
+                👤 Kalifia
               </button>
             </div>
           </div>
@@ -192,8 +228,8 @@ export default function LoginPage() {
 
       {/* Right Column: Visual brand panel */}
       <div className="hidden md:flex flex-col items-center justify-center bg-[#FAF9F6] border-l border-[#E8E8E8] p-12 text-center">
-        <div className="w-20 h-20 rounded-full bg-[#E23744] text-[#FFFFFF] flex items-center justify-center font-black text-3xl shadow-md mb-6">
-          FD
+        <div className="w-20 h-20 rounded-full bg-[#E23744] text-[#FFFFFF] flex items-center justify-center font-black text-2xl shadow-md mb-6">
+          TV
         </div>
         <h2 className="text-2xl font-black text-[#1C1C1C] max-w-xs">
           Craving Delicious Food?

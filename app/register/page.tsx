@@ -54,7 +54,7 @@ export default function RegisterPage() {
           <div className="text-center mb-6">
             <h1 className="text-2xl font-black text-[#1C1C1C]">Create an Account</h1>
             <p className="text-xs text-[#696969] mt-1">
-              Join Zwiggy and start ordering your favourite food
+              Join Tastevio and start ordering your favourite food
             </p>
           </div>
 

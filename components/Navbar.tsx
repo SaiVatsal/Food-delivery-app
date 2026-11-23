@@ -136,11 +136,11 @@ export function Navbar() {
         {/* Left: Brand Logo & Location Bar */}
         <div className="flex items-center gap-4 flex-shrink-0">
           <Link href="/" className="flex items-center gap-1.5 group">
-            <span className="w-8 h-8 rounded-[8px] bg-[#E23744] text-[#FFFFFF] font-black text-lg flex items-center justify-center shadow-xs">
-              FD
+            <span className="w-8 h-8 rounded-[8px] bg-[#E23744] text-[#FFFFFF] font-black text-sm flex items-center justify-center shadow-xs">
+              TV
             </span>
             <span className="font-extrabold text-xl tracking-tight text-[#1C1C1C]">
-              Zwiggy
+              Tastevio
             </span>
           </Link>
 

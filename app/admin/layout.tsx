@@ -26,10 +26,10 @@ export default async function AdminLayout({
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <span className="w-7 h-7 rounded-[6px] bg-[#E23744] text-[#FFFFFF] text-xs font-black flex items-center justify-center">
-              AD
+              TV
             </span>
             <span className="font-extrabold text-sm tracking-wide">
-              Zwiggy Administration
+              Tastevio Administration
             </span>
             <span className="bg-[#2E7D32] text-[10px] font-bold px-2 py-0.5 rounded text-[#FFFFFF]">
               Master Role

@@ -48,37 +48,47 @@ export async function POST(request: Request) {
     await DeliveryPartner.createIndexes();
 
     // 1. Seed Admin User (idempotent upsert by email)
-    const adminEmail = (process.env.ADMIN_EMAIL || "admin@example.com").toLowerCase();
-    const adminRawPass = process.env.ADMIN_PASSWORD || "AdminPass123!";
+    const adminEmail = (process.env.ADMIN_EMAIL || "charan@admin.com").toLowerCase();
+    const adminRawPass = process.env.ADMIN_PASSWORD || "Bitcoin@100";
     const adminHashedPass = await hashPassword(adminRawPass);
 
     await User.findOneAndUpdate(
       { email: adminEmail },
       {
-        name: "App Administrator",
+        name: "Charan",
         email: adminEmail,
         password: adminHashedPass,
         role: "admin",
-        address: "HQ Admin Office, MG Road, Bengaluru",
+        address: "Tastevio HQ, Indiranagar 100 Feet Rd, Bengaluru",
       },
       { upsert: true, new: true }
     );
 
-    // 2. Seed Demo Customer User (idempotent upsert by email)
-    const demoEmail = "demo@example.com";
-    const demoHashedPass = await hashPassword("DemoPass123!");
+    // 2. Seed Demo Customer Users
+    const demoUsersToSeed = [
+      { name: "Charan", email: "charan@tastevio.com", address: "Flat 402, Green Glen Heights, Bengaluru" },
+      { name: "Sai", email: "sai@tastevio.com", address: "Plot 12, Rainbow Colony, Koramangala, Bengaluru" },
+      { name: "Sita Ram", email: "sitaram@tastevio.com", address: "Villa 8, Sunrise Enclave, Whitefield, Bengaluru" },
+      { name: "Priya", email: "priya@tastevio.com", address: "Apartment 101, Lakeview Residency, HSR Layout, Bengaluru" },
+      { name: "Kalifia", email: "kalifia@tastevio.com", address: "Tower C, Palm Grove, JP Nagar, Bengaluru" },
+      { name: "Demo Customer", email: "demo@example.com", address: "Flat 402, Green Glen Heights, Bengaluru" },
+    ];
 
-    await User.findOneAndUpdate(
-      { email: demoEmail },
-      {
-        name: "Demo Customer",
-        email: demoEmail,
-        password: demoHashedPass,
-        role: "user",
-        address: "Flat 402, Green Glen Heights, Bengaluru",
-      },
-      { upsert: true, new: true }
-    );
+    const demoHashedPass = await hashPassword("Bitcoin@100");
+
+    for (const u of demoUsersToSeed) {
+      await User.findOneAndUpdate(
+        { email: u.email },
+        {
+          name: u.name,
+          email: u.email,
+          password: demoHashedPass,
+          role: "user",
+          address: u.address,
+        },
+        { upsert: true, new: true }
+      );
+    }
 
     // 3. Seed 10 Delivery Partners (idempotent upsert by vehicleNo)
     for (const partner of SEEDED_DELIVERY_PARTNERS) {
@@ -332,7 +342,7 @@ export async function POST(request: Request) {
         message: "Database seeded successfully and idempotently",
         summary: {
           adminEmail,
-          demoEmail,
+          demoUsers: demoUsersToSeed.map((u) => u.email),
           restaurantsCount: restaurantData.length,
           menuItemsCount: totalDishes,
           deliveryPartnersCount: SEEDED_DELIVERY_PARTNERS.length,
