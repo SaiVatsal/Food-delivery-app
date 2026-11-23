@@ -1,10 +1,11 @@
 import React from "react";
 import Link from "next/link";
-import { connectDB } from "@/lib/mongodb";
+import { connectDB, isMongoConfigured } from "@/lib/mongodb";
 import { Order } from "@/models/Order";
 import { Restaurant } from "@/models/Restaurant";
 import { User } from "@/models/User";
 import { serializeDocs } from "@/lib/serialize";
+import { MockDB } from "@/lib/mockStore";
 
 interface RecentOrderSummary {
   _id: string;
@@ -16,27 +17,65 @@ interface RecentOrderSummary {
 }
 
 export default async function AdminDashboardPage() {
-  await connectDB();
+  let totalOrdersCount = 0;
+  let activeRestaurantsCount = 0;
+  let totalUsersCount = 0;
+  let totalRevenue = 0;
+  let recentOrders: RecentOrderSummary[] = [];
 
-  // Aggregate stats
-  const [totalOrdersCount, activeRestaurantsCount, totalUsersCount, revenueAggregate, recentOrdersRaw] =
-    await Promise.all([
-      Order.countDocuments({}),
-      Restaurant.countDocuments({ isOpen: true }),
-      User.countDocuments({}),
-      Order.aggregate([
-        { $match: { status: { $ne: "Cancelled" } } },
-        { $group: { _id: null, total: { $sum: "$totalAmount" } } },
-      ]),
-      Order.find({})
-        .populate("userId", "name email")
-        .populate("restaurantId", "name")
-        .sort({ createdAt: -1 })
-        .limit(6),
-    ]);
+  if (!isMongoConfigured()) {
+    // 1. In-Memory Mock Store Fallback
+    const orders = MockDB.getOrders();
+    totalOrdersCount = orders.length;
+    activeRestaurantsCount = MockDB.getRestaurants().filter((r) => r.isOpen).length;
+    totalUsersCount = MockDB.getUsers().length;
+    totalRevenue = orders
+      .filter((o) => o.status !== "Cancelled")
+      .reduce((sum, o) => sum + o.totalAmount, 0);
 
-  const totalRevenue = revenueAggregate.length > 0 ? revenueAggregate[0].total : 0;
-  const recentOrders = serializeDocs<RecentOrderSummary>(recentOrdersRaw);
+    recentOrders = orders.slice(0, 6).map((o) => {
+      const user = MockDB.findUserById(o.userId);
+      return {
+        _id: o._id,
+        totalAmount: o.totalAmount,
+        status: o.status,
+        createdAt: o.createdAt,
+        userId: { name: user?.name || "Customer", email: user?.email || "" },
+        restaurantId: { name: o.restaurantId.name },
+      };
+    });
+  } else {
+    // 2. Real MongoDB
+    const db = await connectDB();
+    if (!db) {
+      const orders = MockDB.getOrders();
+      totalOrdersCount = orders.length;
+      activeRestaurantsCount = MockDB.getRestaurants().filter((r) => r.isOpen).length;
+      totalUsersCount = MockDB.getUsers().length;
+      totalRevenue = orders.filter((o) => o.status !== "Cancelled").reduce((sum, o) => sum + o.totalAmount, 0);
+    } else {
+      const [ordCount, restCount, userCount, revAgg, recentRaw] = await Promise.all([
+        Order.countDocuments({}),
+        Restaurant.countDocuments({ isOpen: true }),
+        User.countDocuments({}),
+        Order.aggregate([
+          { $match: { status: { $ne: "Cancelled" } } },
+          { $group: { _id: null, total: { $sum: "$totalAmount" } } },
+        ]),
+        Order.find({})
+          .populate("userId", "name email")
+          .populate("restaurantId", "name")
+          .sort({ createdAt: -1 })
+          .limit(6),
+      ]);
+
+      totalOrdersCount = ordCount;
+      activeRestaurantsCount = restCount;
+      totalUsersCount = userCount;
+      totalRevenue = revAgg.length > 0 ? revAgg[0].total : 0;
+      recentOrders = serializeDocs<RecentOrderSummary>(recentRaw);
+    }
+  }
 
   return (
     <div className="space-y-8">
@@ -105,7 +144,7 @@ export default async function AdminDashboardPage() {
         <div className="flex items-center justify-between pb-3 border-b border-[#E8E8E8] mb-4">
           <div>
             <h2 className="text-sm font-extrabold text-[#1C1C1C]">Recent Orders</h2>
-            <p className="text-[11px] text-[#696969]">Latest 6 orders placed across restaurants</p>
+            <p className="text-[11px] text-[#696969]">Latest orders placed across restaurants</p>
           </div>
           <Link
             href="/admin/orders"
@@ -117,7 +156,7 @@ export default async function AdminDashboardPage() {
 
         {recentOrders.length === 0 ? (
           <div className="p-8 text-center text-xs text-[#696969]">
-            No orders found. Use the customer site or seeder to create sample orders.
+            No orders found yet.
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -136,10 +175,10 @@ export default async function AdminDashboardPage() {
                 {recentOrders.map((ord) => (
                   <tr key={ord._id} className="hover:bg-[#FAF9F6]">
                     <td className="py-2.5 font-mono text-[#1C1C1C]">
-                      {ord._id.substring(0, 8)}...
+                      {ord._id.substring(0, 10)}...
                     </td>
                     <td className="py-2.5 text-[#1C1C1C]">
-                      {ord.userId?.name || "Guest Customer"}
+                      {ord.userId?.name || "Customer"}
                     </td>
                     <td className="py-2.5 font-medium text-[#1C1C1C]">
                       {ord.restaurantId?.name || "Restaurant"}

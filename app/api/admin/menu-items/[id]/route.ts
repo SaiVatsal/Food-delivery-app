@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import mongoose from "mongoose";
-import { connectDB } from "@/lib/mongodb";
+import { connectDB, isMongoConfigured } from "@/lib/mongodb";
 import { MenuItem } from "@/models/MenuItem";
 import { verifyAuthFromRequest } from "@/lib/auth";
 import { serializeDoc } from "@/lib/serialize";
+import { MockDB } from "@/lib/mockStore";
 
 export async function PATCH(
   request: Request,
@@ -11,10 +12,6 @@ export async function PATCH(
 ) {
   try {
     const { id } = await context.params;
-
-    if (!mongoose.isValidObjectId(id)) {
-      return NextResponse.json({ error: "Invalid menu item ID" }, { status: 400 });
-    }
 
     const authUser = await verifyAuthFromRequest(request);
     if (!authUser || authUser.role !== "admin") {
@@ -26,7 +23,22 @@ export async function PATCH(
       return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
-    await connectDB();
+    // 1. In-Memory Mock Store Fallback
+    if (!isMongoConfigured() || !mongoose.isValidObjectId(id)) {
+      const updated = MockDB.updateMenuItem(id, body as Record<string, unknown>);
+      if (updated) {
+        return NextResponse.json({ menuItem: updated }, { status: 200 });
+      }
+      if (!isMongoConfigured()) {
+        return NextResponse.json({ error: "Menu item not found" }, { status: 404 });
+      }
+    }
+
+    // 2. Real MongoDB
+    const db = await connectDB();
+    if (!db) {
+      return NextResponse.json({ error: "Menu item not found" }, { status: 404 });
+    }
 
     const menuItem = await MenuItem.findById(id);
     if (!menuItem) {
@@ -93,16 +105,25 @@ export async function DELETE(
   try {
     const { id } = await context.params;
 
-    if (!mongoose.isValidObjectId(id)) {
-      return NextResponse.json({ error: "Invalid menu item ID" }, { status: 400 });
-    }
-
     const authUser = await verifyAuthFromRequest(request);
     if (!authUser || authUser.role !== "admin") {
       return NextResponse.json({ error: "Forbidden: Admin required" }, { status: 403 });
     }
 
-    await connectDB();
+    // 1. In-Memory Mock Store Fallback
+    if (!isMongoConfigured() || !mongoose.isValidObjectId(id)) {
+      MockDB.deleteMenuItem(id);
+      return NextResponse.json(
+        { message: "Menu item deleted successfully" },
+        { status: 200 }
+      );
+    }
+
+    // 2. Real MongoDB
+    const db = await connectDB();
+    if (!db) {
+      return NextResponse.json({ error: "Menu item not found" }, { status: 404 });
+    }
 
     const menuItem = await MenuItem.findByIdAndDelete(id);
     if (!menuItem) {

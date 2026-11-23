@@ -18,11 +18,18 @@ if (!global.mongooseGlobal) {
   global.mongooseGlobal = cached;
 }
 
-export async function connectDB(): Promise<typeof mongoose> {
+export function isMongoConfigured(): boolean {
   const uri = process.env.MONGODB_URI;
-  if (!uri) {
-    throw new Error("MONGODB_URI environment variable is not defined");
+  return Boolean(uri && uri.trim().length > 0 && !uri.includes("<username>"));
+}
+
+export async function connectDB(): Promise<typeof mongoose | null> {
+  if (!isMongoConfigured()) {
+    // Graceful fallback: return null so API routes can switch to in-memory mock store
+    return null;
   }
+
+  const uri = process.env.MONGODB_URI!;
 
   if (cached.conn) {
     return cached.conn;
@@ -31,6 +38,7 @@ export async function connectDB(): Promise<typeof mongoose> {
   if (!cached.promise) {
     const opts: mongoose.ConnectOptions = {
       bufferCommands: false,
+      serverSelectionTimeoutMS: 5000,
     };
     cached.promise = mongoose.connect(uri, opts).then((m) => m);
   }
@@ -39,7 +47,9 @@ export async function connectDB(): Promise<typeof mongoose> {
     cached.conn = await cached.promise;
   } catch (err: unknown) {
     cached.promise = null;
-    throw err;
+    // Log warning and return null for seamless fallback
+    console.warn("MongoDB connection failed, falling back to mock store:", err);
+    return null;
   }
 
   return cached.conn;

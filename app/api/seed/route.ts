@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { connectDB } from "@/lib/mongodb";
+import { connectDB, isMongoConfigured } from "@/lib/mongodb";
 import { User } from "@/models/User";
 import { Restaurant } from "@/models/Restaurant";
 import { MenuItem } from "@/models/MenuItem";
@@ -26,7 +26,20 @@ export async function POST(request: Request) {
       );
     }
 
-    await connectDB();
+    if (!isMongoConfigured()) {
+      return NextResponse.json({
+        success: true,
+        message: "In-memory MockDB store is active with pre-seeded data.",
+      });
+    }
+
+    const db = await connectDB();
+    if (!db) {
+      return NextResponse.json({
+        success: true,
+        message: "MongoDB offline. In-memory MockDB store is active with pre-seeded data.",
+      });
+    }
 
     // Ensure 2dsphere indexes are built for $geoNear
     await Restaurant.createIndexes();

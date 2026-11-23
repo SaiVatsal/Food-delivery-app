@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
-import { connectDB } from "@/lib/mongodb";
+import { connectDB, isMongoConfigured } from "@/lib/mongodb";
 import { Restaurant } from "@/models/Restaurant";
 import { MenuItem } from "@/models/MenuItem";
-import { isValidCoordinates } from "@/lib/geo";
+import { isValidCoordinates, haversineDistanceKm, geoJsonToLatLng } from "@/lib/geo";
 import { serializeDocs } from "@/lib/serialize";
+import { MockDB } from "@/lib/mockStore";
 import type { PipelineStage } from "mongoose";
 
 export async function GET(request: Request) {
@@ -16,9 +17,58 @@ export async function GET(request: Request) {
     const cuisine = searchParams.get("cuisine");
     const vegOnly = searchParams.get("vegOnly") === "true";
 
-    await connectDB();
+    // 1. In-Memory Mock Store Fallback
+    if (!isMongoConfigured()) {
+      let results = [...MockDB.getRestaurants()];
 
-    // Prepare vegOnly restaurant IDs if requested
+      if (city && city.trim() !== "" && city.toLowerCase() !== "all") {
+        results = results.filter((r) =>
+          r.location.toLowerCase().includes(city.trim().toLowerCase())
+        );
+      }
+
+      if (cuisine && cuisine.trim() !== "" && cuisine.toLowerCase() !== "all") {
+        results = results.filter((r) =>
+          r.cuisine.some((c) => c.toLowerCase() === cuisine.trim().toLowerCase())
+        );
+      }
+
+      if (vegOnly) {
+        const vegRestIds = new Set(
+          MockDB.getMenuItems()
+            .filter((m) => m.isVeg && m.isAvailable)
+            .map((m) => m.restaurantId)
+        );
+        results = results.filter((r) => vegRestIds.has(r._id));
+      }
+
+      if (latParam !== null && lngParam !== null) {
+        const lat = parseFloat(latParam);
+        const lng = parseFloat(lngParam);
+
+        if (isValidCoordinates(lat, lng)) {
+          const withDistance = results.map((r) => {
+            const coords = geoJsonToLatLng(r.coordinates.coordinates);
+            const dist = haversineDistanceKm(coords.lat, coords.lng, lat, lng);
+            return {
+              ...r,
+              distanceKm: Math.round(dist * 10) / 10,
+            };
+          });
+          withDistance.sort((a, b) => a.distanceKm - b.distanceKm);
+          return NextResponse.json({ restaurants: withDistance }, { status: 200 });
+        }
+      }
+
+      return NextResponse.json({ restaurants: results }, { status: 200 });
+    }
+
+    // 2. Real MongoDB
+    const db = await connectDB();
+    if (!db) {
+      return NextResponse.json({ restaurants: MockDB.getRestaurants() }, { status: 200 });
+    }
+
     let vegRestaurantIds: unknown[] | null = null;
     if (vegOnly) {
       vegRestaurantIds = await MenuItem.find({
@@ -46,7 +96,6 @@ export async function GET(request: Request) {
         );
       }
 
-      // GeoNear query filters
       const geoQuery: Record<string, unknown> = {
         isOpen: true,
       };
@@ -63,13 +112,12 @@ export async function GET(request: Request) {
         geoQuery._id = { $in: vegRestaurantIds };
       }
 
-      // $geoNear MUST be the FIRST aggregation stage
       const pipeline: PipelineStage[] = [
         {
           $geoNear: {
             near: {
               type: "Point",
-              coordinates: [lng, lat], // GeoJSON [lng, lat]
+              coordinates: [lng, lat],
             },
             distanceField: "distanceMeters",
             maxDistance: radiusKm * 1000,
@@ -93,7 +141,6 @@ export async function GET(request: Request) {
       );
     }
 
-    // Fallback: Non-geospatial listing
     const query: Record<string, unknown> = {
       isOpen: true,
     };

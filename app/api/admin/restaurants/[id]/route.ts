@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import mongoose from "mongoose";
-import { connectDB } from "@/lib/mongodb";
+import { connectDB, isMongoConfigured } from "@/lib/mongodb";
 import { Restaurant } from "@/models/Restaurant";
 import { MenuItem } from "@/models/MenuItem";
 import { isValidCoordinates } from "@/lib/geo";
 import { verifyAuthFromRequest } from "@/lib/auth";
 import { serializeDoc } from "@/lib/serialize";
+import { MockDB } from "@/lib/mockStore";
 
 export async function PATCH(
   request: Request,
@@ -13,10 +14,6 @@ export async function PATCH(
 ) {
   try {
     const { id } = await context.params;
-
-    if (!mongoose.isValidObjectId(id)) {
-      return NextResponse.json({ error: "Invalid restaurant ID" }, { status: 400 });
-    }
 
     const authUser = await verifyAuthFromRequest(request);
     if (!authUser || authUser.role !== "admin") {
@@ -28,7 +25,22 @@ export async function PATCH(
       return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
-    await connectDB();
+    // 1. In-Memory Mock Store Fallback
+    if (!isMongoConfigured() || !mongoose.isValidObjectId(id)) {
+      const updated = MockDB.updateRestaurant(id, body as Record<string, unknown>);
+      if (updated) {
+        return NextResponse.json({ restaurant: updated }, { status: 200 });
+      }
+      if (!isMongoConfigured()) {
+        return NextResponse.json({ error: "Restaurant not found" }, { status: 404 });
+      }
+    }
+
+    // 2. Real MongoDB
+    const db = await connectDB();
+    if (!db) {
+      return NextResponse.json({ error: "Restaurant not found" }, { status: 404 });
+    }
 
     const restaurant = await Restaurant.findById(id);
     if (!restaurant) {
@@ -88,7 +100,7 @@ export async function PATCH(
       }
       restaurant.coordinates = {
         type: "Point",
-        coordinates: [lng, lat], // GeoJSON [lng, lat]
+        coordinates: [lng, lat],
       };
     }
 
@@ -108,23 +120,31 @@ export async function DELETE(
   try {
     const { id } = await context.params;
 
-    if (!mongoose.isValidObjectId(id)) {
-      return NextResponse.json({ error: "Invalid restaurant ID" }, { status: 400 });
-    }
-
     const authUser = await verifyAuthFromRequest(request);
     if (!authUser || authUser.role !== "admin") {
       return NextResponse.json({ error: "Forbidden: Admin required" }, { status: 403 });
     }
 
-    await connectDB();
+    // 1. In-Memory Mock Store Fallback
+    if (!isMongoConfigured() || !mongoose.isValidObjectId(id)) {
+      MockDB.deleteRestaurant(id);
+      return NextResponse.json(
+        { message: "Restaurant and all associated menu items deleted successfully" },
+        { status: 200 }
+      );
+    }
+
+    // 2. Real MongoDB
+    const db = await connectDB();
+    if (!db) {
+      return NextResponse.json({ error: "Restaurant not found" }, { status: 404 });
+    }
 
     const restaurant = await Restaurant.findById(id);
     if (!restaurant) {
       return NextResponse.json({ error: "Restaurant not found" }, { status: 404 });
     }
 
-    // Cascade delete menu items belonging to this restaurant
     await MenuItem.deleteMany({ restaurantId: restaurant._id });
     await Restaurant.findByIdAndDelete(id);
 

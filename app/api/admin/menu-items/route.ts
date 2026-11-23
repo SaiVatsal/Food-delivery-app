@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import mongoose, { Types } from "mongoose";
-import { connectDB } from "@/lib/mongodb";
+import { connectDB, isMongoConfigured } from "@/lib/mongodb";
 import { MenuItem } from "@/models/MenuItem";
 import { Restaurant } from "@/models/Restaurant";
 import { verifyAuthFromRequest } from "@/lib/auth";
 import { serializeDocs, serializeDoc } from "@/lib/serialize";
+import { MockDB, MockMenuItem } from "@/lib/mockStore";
 
 export async function GET(request: Request) {
   try {
@@ -16,7 +17,32 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const restaurantId = searchParams.get("restaurantId");
 
-    await connectDB();
+    // 1. In-Memory Mock Store Fallback
+    if (!isMongoConfigured()) {
+      let items = MockDB.getMenuItems();
+      if (restaurantId && restaurantId !== "all") {
+        items = items.filter((m) => m.restaurantId === restaurantId);
+      }
+      const rests = MockDB.getRestaurants();
+      const populated = items.map((i) => {
+        const rest = rests.find((r) => r._id === i.restaurantId);
+        return {
+          ...i,
+          restaurantId: {
+            _id: rest?._id || "",
+            name: rest?.name || "Restaurant",
+            slug: rest?.slug || "",
+          },
+        };
+      });
+      return NextResponse.json({ menuItems: populated }, { status: 200 });
+    }
+
+    // 2. Real MongoDB
+    const db = await connectDB();
+    if (!db) {
+      return NextResponse.json({ menuItems: MockDB.getMenuItems() }, { status: 200 });
+    }
 
     const filter: Record<string, unknown> = {};
     if (restaurantId && mongoose.isValidObjectId(restaurantId)) {
@@ -66,7 +92,7 @@ export async function POST(request: Request) {
       isAvailable?: unknown;
     };
 
-    if (!restaurantId || !mongoose.isValidObjectId(restaurantId as string)) {
+    if (!restaurantId) {
       return NextResponse.json({ error: "Valid restaurantId is required" }, { status: 400 });
     }
 
@@ -89,14 +115,35 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Category is required" }, { status: 400 });
     }
 
-    await connectDB();
+    // 1. In-Memory Mock Store Fallback
+    if (!isMongoConfigured()) {
+      const newDish: MockMenuItem = {
+        _id: `dish_${Math.random().toString(36).substring(2, 9)}`,
+        restaurantId: restaurantId as string,
+        name: name.trim(),
+        description: typeof description === "string" ? description.trim() : "",
+        price,
+        category: category.trim(),
+        isVeg: typeof isVeg === "boolean" ? isVeg : true,
+        image: typeof image === "string" && image.trim().length > 0 ? image.trim() : "/placeholder-food.svg",
+        isAvailable: typeof isAvailable === "boolean" ? isAvailable : true,
+      };
+
+      MockDB.addMenuItem(newDish);
+      return NextResponse.json({ menuItem: newDish }, { status: 201 });
+    }
+
+    // 2. Real MongoDB
+    const db = await connectDB();
+    if (!db) {
+      return NextResponse.json({ error: "Database offline" }, { status: 503 });
+    }
 
     const restaurant = await Restaurant.findById(restaurantId);
     if (!restaurant) {
       return NextResponse.json({ error: "Restaurant not found" }, { status: 404 });
     }
 
-    // Check duplicate (restaurantId + name)
     const existing = await MenuItem.findOne({
       restaurantId: restaurant._id,
       name: name.trim(),

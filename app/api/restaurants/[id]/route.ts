@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import mongoose from "mongoose";
-import { connectDB } from "@/lib/mongodb";
+import { connectDB, isMongoConfigured } from "@/lib/mongodb";
 import { Restaurant } from "@/models/Restaurant";
 import { MenuItem } from "@/models/MenuItem";
 import { serializeDoc, serializeDocs } from "@/lib/serialize";
+import { MockDB } from "@/lib/mockStore";
 
 export async function GET(
   _request: Request,
@@ -12,14 +13,37 @@ export async function GET(
   try {
     const { id } = await context.params;
 
-    if (!mongoose.isValidObjectId(id)) {
-      return NextResponse.json(
-        { error: "Invalid restaurant ID format" },
-        { status: 400 }
-      );
+    // 1. In-Memory Mock Store Fallback
+    if (!isMongoConfigured() || !mongoose.isValidObjectId(id)) {
+      const mockRest = MockDB.findRestaurantById(id);
+      if (mockRest) {
+        const items = MockDB.findMenuItemsByRestaurant(id);
+        return NextResponse.json(
+          {
+            restaurant: mockRest,
+            menuItems: items,
+          },
+          { status: 200 }
+        );
+      }
+      if (!isMongoConfigured()) {
+        return NextResponse.json({ error: "Restaurant not found" }, { status: 404 });
+      }
     }
 
-    await connectDB();
+    // 2. Real MongoDB
+    const db = await connectDB();
+    if (!db) {
+      const mockRest = MockDB.findRestaurantById(id);
+      if (mockRest) {
+        const items = MockDB.findMenuItemsByRestaurant(id);
+        return NextResponse.json(
+          { restaurant: mockRest, menuItems: items },
+          { status: 200 }
+        );
+      }
+      return NextResponse.json({ error: "Restaurant not found" }, { status: 404 });
+    }
 
     const restaurant = await Restaurant.findById(id);
     if (!restaurant) {

@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import mongoose from "mongoose";
-import { connectDB } from "@/lib/mongodb";
+import { connectDB, isMongoConfigured } from "@/lib/mongodb";
 import { Order, IOrder } from "@/models/Order";
 import { verifyAuthFromRequest } from "@/lib/auth";
 import { serializeDoc } from "@/lib/serialize";
+import { MockDB, MockOrder } from "@/lib/mockStore";
 
 export async function GET(
   request: Request,
@@ -12,19 +13,71 @@ export async function GET(
   try {
     const { id } = await context.params;
 
-    if (!mongoose.isValidObjectId(id)) {
-      return NextResponse.json(
-        { error: "Invalid order ID format" },
-        { status: 400 }
-      );
-    }
-
     const authUser = await verifyAuthFromRequest(request);
     if (!authUser) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    await connectDB();
+    const serverNow = Date.now();
+
+    // 1. In-Memory Mock Store Fallback
+    if (!isMongoConfigured() || !mongoose.isValidObjectId(id)) {
+      const mockOrder = MockDB.findOrderById(id);
+      if (mockOrder) {
+        if (mockOrder.userId !== authUser.id && authUser.role !== "admin") {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+
+        // Lazy simulation for mock order
+        const elapsed = (serverNow - new Date(mockOrder.createdAt).getTime()) / 1000;
+        let newStatus: MockOrder["status"] = mockOrder.status;
+
+        if (mockOrder.status !== "Cancelled" && mockOrder.status !== "Delivered") {
+          if (elapsed < 20) {
+            newStatus = "Placed";
+          } else if (elapsed < 60) {
+            newStatus = "Preparing";
+          } else {
+            const outElapsed =
+              (serverNow -
+                new Date(
+                  mockOrder.outForDeliveryAt ||
+                    new Date(new Date(mockOrder.createdAt).getTime() + 60000).toISOString()
+                ).getTime()) /
+              1000;
+            if (outElapsed / (mockOrder.etaSeconds || 180) >= 1) {
+              newStatus = "Delivered";
+            } else {
+              newStatus = "Out for Delivery";
+              if (!mockOrder.outForDeliveryAt) {
+                mockOrder.outForDeliveryAt = new Date().toISOString();
+              }
+            }
+          }
+          mockOrder.status = newStatus;
+          MockDB.updateOrder(id, { status: newStatus, outForDeliveryAt: mockOrder.outForDeliveryAt });
+        }
+
+        return NextResponse.json(
+          { order: mockOrder, serverNow },
+          { status: 200 }
+        );
+      }
+
+      if (!isMongoConfigured()) {
+        return NextResponse.json({ error: "Order not found" }, { status: 404 });
+      }
+    }
+
+    // 2. Real MongoDB
+    const db = await connectDB();
+    if (!db) {
+      const mockOrder = MockDB.findOrderById(id);
+      if (mockOrder) {
+        return NextResponse.json({ order: mockOrder, serverNow }, { status: 200 });
+      }
+      return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    }
 
     const order = await Order.findById(id).populate(
       "restaurantId",
@@ -35,7 +88,6 @@ export async function GET(
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
-    // Authorization: User can only view their own order, Admin can view any
     if (
       order.userId.toString() !== authUser.id &&
       authUser.role !== "admin"
@@ -46,9 +98,6 @@ export async function GET(
       );
     }
 
-    const serverNow = Date.now();
-
-    // Lazy simulation when SIMULATE_DELIVERY is "true"
     const simulateDelivery = process.env.SIMULATE_DELIVERY === "true";
     if (
       simulateDelivery &&
@@ -65,7 +114,6 @@ export async function GET(
       } else if (elapsedSeconds < 60) {
         newStatus = "Preparing";
       } else {
-        // >= 60 seconds
         if (!newOutForDeliveryAt) {
           newOutForDeliveryAt = new Date(
             new Date(order.createdAt).getTime() + 60_000
@@ -115,19 +163,38 @@ export async function PATCH(
   try {
     const { id } = await context.params;
 
-    if (!mongoose.isValidObjectId(id)) {
-      return NextResponse.json(
-        { error: "Invalid order ID format" },
-        { status: 400 }
-      );
-    }
-
     const authUser = await verifyAuthFromRequest(request);
     if (!authUser) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    await connectDB();
+    // 1. In-Memory Mock Store Fallback
+    if (!isMongoConfigured() || !mongoose.isValidObjectId(id)) {
+      const mockOrder = MockDB.findOrderById(id);
+      if (mockOrder) {
+        if (mockOrder.userId !== authUser.id) {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+        if (mockOrder.status !== "Placed") {
+          return NextResponse.json(
+            { error: "Order can only be cancelled while in 'Placed' status" },
+            { status: 400 }
+          );
+        }
+        mockOrder.status = "Cancelled";
+        MockDB.updateOrder(id, { status: "Cancelled" });
+        return NextResponse.json({ order: mockOrder }, { status: 200 });
+      }
+      if (!isMongoConfigured()) {
+        return NextResponse.json({ error: "Order not found" }, { status: 404 });
+      }
+    }
+
+    // 2. Real MongoDB
+    const db = await connectDB();
+    if (!db) {
+      return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    }
 
     const order = await Order.findById(id);
     if (!order) {

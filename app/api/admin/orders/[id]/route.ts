@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import mongoose from "mongoose";
-import { connectDB } from "@/lib/mongodb";
+import { connectDB, isMongoConfigured } from "@/lib/mongodb";
 import { Order } from "@/models/Order";
 import { verifyAuthFromRequest } from "@/lib/auth";
 import { serializeDoc } from "@/lib/serialize";
+import { MockDB, MockOrder } from "@/lib/mockStore";
 
 const VALID_STATUSES = [
   "Placed",
@@ -20,23 +21,9 @@ export async function PATCH(
   try {
     const { id } = await context.params;
 
-    if (!mongoose.isValidObjectId(id)) {
-      return NextResponse.json(
-        { error: "Invalid order ID format" },
-        { status: 400 }
-      );
-    }
-
     const authUser = await verifyAuthFromRequest(request);
-    if (!authUser) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    if (authUser.role !== "admin") {
-      return NextResponse.json(
-        { error: "Forbidden: Admin access required" },
-        { status: 403 }
-      );
+    if (!authUser || authUser.role !== "admin") {
+      return NextResponse.json({ error: "Forbidden: Admin required" }, { status: 403 });
     }
 
     const body = await request.json().catch(() => null);
@@ -57,17 +44,38 @@ export async function PATCH(
       );
     }
 
-    await connectDB();
+    // 1. In-Memory Mock Store Fallback
+    if (!isMongoConfigured() || !mongoose.isValidObjectId(id)) {
+      const mockOrder = MockDB.findOrderById(id);
+      if (mockOrder) {
+        mockOrder.status = status as MockOrder["status"];
+        if (status === "Out for Delivery" && !mockOrder.outForDeliveryAt) {
+          mockOrder.outForDeliveryAt = new Date().toISOString();
+        }
+        MockDB.updateOrder(id, {
+          status: mockOrder.status,
+          outForDeliveryAt: mockOrder.outForDeliveryAt,
+        });
+        return NextResponse.json({ order: mockOrder }, { status: 200 });
+      }
+      if (!isMongoConfigured()) {
+        return NextResponse.json({ error: "Order not found" }, { status: 404 });
+      }
+    }
+
+    // 2. Real MongoDB
+    const db = await connectDB();
+    if (!db) {
+      return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    }
 
     const order = await Order.findById(id);
     if (!order) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
-    // Update status
     order.status = status as (typeof VALID_STATUSES)[number];
 
-    // When setting "Out for Delivery", set outForDeliveryAt to current time
     if (status === "Out for Delivery" && !order.outForDeliveryAt) {
       order.outForDeliveryAt = new Date();
     }

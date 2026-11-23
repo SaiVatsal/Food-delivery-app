@@ -1,24 +1,36 @@
 import { NextResponse } from "next/server";
-import { connectDB } from "@/lib/mongodb";
+import { connectDB, isMongoConfigured } from "@/lib/mongodb";
 import { Order } from "@/models/Order";
 import { verifyAuthFromRequest } from "@/lib/auth";
 import { serializeDocs } from "@/lib/serialize";
+import { MockDB } from "@/lib/mockStore";
 
 export async function GET(request: Request) {
   try {
     const authUser = await verifyAuthFromRequest(request);
-    if (!authUser) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!authUser || authUser.role !== "admin") {
+      return NextResponse.json({ error: "Forbidden: Admin required" }, { status: 403 });
     }
 
-    if (authUser.role !== "admin") {
+    // 1. In-Memory Mock Store Fallback
+    if (!isMongoConfigured()) {
       return NextResponse.json(
-        { error: "Forbidden: Admin access required" },
-        { status: 403 }
+        {
+          orders: MockDB.getOrders(),
+          serverNow: Date.now(),
+        },
+        { status: 200 }
       );
     }
 
-    await connectDB();
+    // 2. Real MongoDB
+    const db = await connectDB();
+    if (!db) {
+      return NextResponse.json(
+        { orders: MockDB.getOrders(), serverNow: Date.now() },
+        { status: 200 }
+      );
+    }
 
     const orders = await Order.find({})
       .populate("restaurantId", "name image location slug")

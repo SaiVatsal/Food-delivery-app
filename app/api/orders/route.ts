@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import mongoose, { Types } from "mongoose";
-import { connectDB } from "@/lib/mongodb";
+import { connectDB, isMongoConfigured } from "@/lib/mongodb";
 import { Order, IOrderItem } from "@/models/Order";
 import { MenuItem } from "@/models/MenuItem";
 import { Restaurant } from "@/models/Restaurant";
@@ -14,6 +14,7 @@ import {
   geoJsonToLatLng,
 } from "@/lib/geo";
 import { serializeDoc, serializeDocs } from "@/lib/serialize";
+import { MockDB, MockOrder } from "@/lib/mockStore";
 
 interface RequestOrderItem {
   menuItemId: string;
@@ -64,7 +65,68 @@ export async function POST(request: Request) {
       );
     }
 
-    // Validate each item format
+    // 1. In-Memory Mock Store Fallback
+    if (!isMongoConfigured()) {
+      const allDishes = MockDB.getMenuItems();
+      let totalAmount = 0;
+      const orderItems = [];
+      let restId = "";
+
+      for (const item of items as RequestOrderItem[]) {
+        const dish = allDishes.find((d) => d._id === item.menuItemId);
+        if (!dish) {
+          return NextResponse.json({ error: "One or more dishes not found" }, { status: 400 });
+        }
+        restId = dish.restaurantId;
+        totalAmount += dish.price * item.quantity;
+        orderItems.push({
+          menuItemId: dish._id,
+          name: dish.name,
+          price: dish.price,
+          quantity: item.quantity,
+        });
+      }
+
+      const rest = MockDB.findRestaurantById(restId) || MockDB.getRestaurants()[0];
+      const partner = SEEDED_DELIVERY_PARTNERS[Math.floor(Math.random() * SEEDED_DELIVERY_PARTNERS.length)];
+
+      const restCoords = geoJsonToLatLng(rest.coordinates.coordinates);
+      const dist = haversineDistanceKm(restCoords.lat, restCoords.lng, coords.lat as number, coords.lng as number);
+      const etaSeconds = computeEtaSeconds(dist);
+
+      const newMockOrder: MockOrder = {
+        _id: `ord_${Math.random().toString(36).substring(2, 9)}`,
+        userId: authUser.id,
+        restaurantId: {
+          _id: rest._id,
+          name: rest.name,
+          image: rest.image,
+          location: rest.location,
+          coordinates: rest.coordinates,
+        },
+        items: orderItems,
+        totalAmount,
+        deliveryAddress: deliveryAddress.trim(),
+        deliveryCoordinates: {
+          lat: coords.lat as number,
+          lng: coords.lng as number,
+        },
+        deliveryPartner: {
+          name: partner.name,
+          phone: partner.phone,
+          vehicleNo: partner.vehicleNo,
+          rating: partner.rating,
+        },
+        etaSeconds,
+        status: "Placed",
+        createdAt: new Date().toISOString(),
+      };
+
+      MockDB.addOrder(newMockOrder);
+      return NextResponse.json({ order: newMockOrder }, { status: 201 });
+    }
+
+    // 2. Real MongoDB
     for (const item of items as RequestOrderItem[]) {
       if (!item.menuItemId || !mongoose.isValidObjectId(item.menuItemId)) {
         return NextResponse.json(
@@ -85,7 +147,11 @@ export async function POST(request: Request) {
       }
     }
 
-    await connectDB();
+    // 2. Real MongoDB
+    const db = await connectDB();
+    if (!db) {
+      return NextResponse.json({ error: "Database offline" }, { status: 503 });
+    }
 
     const itemIds = (items as RequestOrderItem[]).map(
       (i) => new Types.ObjectId(i.menuItemId)
@@ -99,7 +165,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Check all items are available
     const unavailableItem = dbMenuItems.find((i) => !i.isAvailable);
     if (unavailableItem) {
       return NextResponse.json(
@@ -108,7 +173,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Check all items belong to the same restaurant
     const firstRestaurantId = dbMenuItems[0].restaurantId.toString();
     const hasDifferentRestaurant = dbMenuItems.some(
       (i) => i.restaurantId.toString() !== firstRestaurantId
@@ -120,7 +184,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Verify restaurant is open
     const restaurant = await Restaurant.findById(firstRestaurantId);
     if (!restaurant) {
       return NextResponse.json(
@@ -135,7 +198,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Strictly recompute prices and totalAmount from database
     const dbItemMap = new Map(dbMenuItems.map((i) => [i._id.toString(), i]));
     let totalAmount = 0;
     const computedItems: IOrderItem[] = [];
@@ -152,7 +214,6 @@ export async function POST(request: Request) {
       });
     }
 
-    // Select random delivery partner from DB or fallback constants
     const randomPartnerSample = await DeliveryPartner.aggregate([
       { $sample: { size: 1 } },
     ]);
@@ -163,7 +224,6 @@ export async function POST(request: Request) {
             Math.floor(Math.random() * SEEDED_DELIVERY_PARTNERS.length)
           ];
 
-    // Compute ETA using Haversine distance
     const restaurantCoords = geoJsonToLatLng(restaurant.coordinates.coordinates);
     const distanceKm = haversineDistanceKm(
       restaurantCoords.lat,
@@ -207,13 +267,37 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    await connectDB();
+    // 1. In-Memory Mock Store Fallback
+    if (!isMongoConfigured()) {
+      const allOrders = MockDB.getOrders();
+      const userOrders =
+        authUser.role === "admin"
+          ? allOrders
+          : allOrders.filter((o) => o.userId === authUser.id);
+
+      return NextResponse.json(
+        {
+          orders: userOrders,
+          serverNow: Date.now(),
+        },
+        { status: 200 }
+      );
+    }
+
+    // 2. Real MongoDB
+    const db = await connectDB();
+    if (!db) {
+      return NextResponse.json(
+        { orders: MockDB.getOrders(), serverNow: Date.now() },
+        { status: 200 }
+      );
+    }
 
     const filter =
       authUser.role === "admin" ? {} : { userId: new Types.ObjectId(authUser.id) };
 
     const orders = await Order.find(filter)
-      .populate("restaurantId", "name image location slug")
+      .populate("restaurantId", "name image location slug coordinates")
       .sort({ createdAt: -1 });
 
     return NextResponse.json(

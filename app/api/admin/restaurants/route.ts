@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
-import { connectDB } from "@/lib/mongodb";
+import { connectDB, isMongoConfigured } from "@/lib/mongodb";
 import { Restaurant } from "@/models/Restaurant";
 import { MenuItem } from "@/models/MenuItem";
 import { CITY_CENTRE } from "@/lib/constants";
 import { isValidCoordinates } from "@/lib/geo";
 import { verifyAuthFromRequest } from "@/lib/auth";
 import { serializeDocs, serializeDoc } from "@/lib/serialize";
+import { MockDB, MockRestaurant } from "@/lib/mockStore";
 
 export async function GET(request: Request) {
   try {
@@ -14,11 +15,24 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Forbidden: Admin required" }, { status: 403 });
     }
 
-    await connectDB();
+    if (!isMongoConfigured()) {
+      const rests = MockDB.getRestaurants().map((r) => {
+        const dishCount = MockDB.findMenuItemsByRestaurant(r._id).length;
+        return {
+          ...r,
+          menuItemsCount: dishCount,
+        };
+      });
+      return NextResponse.json({ restaurants: rests }, { status: 200 });
+    }
+
+    const db = await connectDB();
+    if (!db) {
+      return NextResponse.json({ restaurants: MockDB.getRestaurants() }, { status: 200 });
+    }
 
     const restaurants = await Restaurant.find({}).sort({ createdAt: -1 });
 
-    // Attach menu items count for admin dashboard
     const counts = await MenuItem.aggregate([
       { $group: { _id: "$restaurantId", count: { $sum: 1 } } },
     ]);
@@ -84,7 +98,6 @@ export async function POST(request: Request) {
         ? slug.trim().toLowerCase()
         : name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-");
 
-    // Coordinates default to CITY_CENTRE if omitted
     const targetLat = typeof lat === "number" ? lat : CITY_CENTRE.lat;
     const targetLng = typeof lng === "number" ? lng : CITY_CENTRE.lng;
 
@@ -95,7 +108,33 @@ export async function POST(request: Request) {
       );
     }
 
-    await connectDB();
+    // 1. In-Memory Mock Store Fallback
+    if (!isMongoConfigured()) {
+      const newRest: MockRestaurant = {
+        _id: `rest_${Math.random().toString(36).substring(2, 9)}`,
+        name: name.trim(),
+        slug: restaurantSlug,
+        cuisine: Array.isArray(cuisine) ? (cuisine as string[]) : ["North Indian"],
+        image: typeof image === "string" && image.trim().length > 0 ? image.trim() : "/placeholder-food.svg",
+        rating: typeof rating === "number" ? Math.min(5, Math.max(0, rating)) : 4.5,
+        deliveryTime: typeof deliveryTime === "number" ? deliveryTime : 30,
+        location: typeof location === "string" && location.trim().length > 0 ? location.trim() : CITY_CENTRE.name,
+        coordinates: {
+          type: "Point",
+          coordinates: [targetLng, targetLat],
+        },
+        isOpen: typeof isOpen === "boolean" ? isOpen : true,
+      };
+
+      MockDB.addRestaurant(newRest);
+      return NextResponse.json({ restaurant: newRest }, { status: 201 });
+    }
+
+    // 2. Real MongoDB
+    const db = await connectDB();
+    if (!db) {
+      return NextResponse.json({ error: "Database offline" }, { status: 503 });
+    }
 
     const existingSlug = await Restaurant.findOne({ slug: restaurantSlug });
     if (existingSlug) {
@@ -121,7 +160,7 @@ export async function POST(request: Request) {
           : CITY_CENTRE.name,
       coordinates: {
         type: "Point",
-        coordinates: [targetLng, targetLat], // MongoDB GeoJSON [lng, lat]
+        coordinates: [targetLng, targetLat],
       },
       isOpen: typeof isOpen === "boolean" ? isOpen : true,
     });

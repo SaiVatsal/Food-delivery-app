@@ -41,13 +41,37 @@ function LoginForm() {
     }
   };
 
-  const fillQuickCreds = (userType: "admin" | "demo") => {
-    if (userType === "admin") {
-      setEmail("admin@example.com");
-      setPassword("AdminPass123!");
-    } else {
-      setEmail("demo@example.com");
-      setPassword("DemoPass123!");
+  const handleQuickLogin = async (userType: "admin" | "demo") => {
+    setLoading(true);
+    const targetEmail = userType === "admin" ? "admin@example.com" : "demo@example.com";
+    const targetPass = userType === "admin" ? "AdminPass123!" : "DemoPass123!";
+    setEmail(targetEmail);
+    setPassword(targetPass);
+
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: targetEmail, password: targetPass }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Login failed");
+      }
+
+      toast.success(
+        userType === "admin"
+          ? "Logged in as Admin! Redirecting..."
+          : `Welcome back, ${data.user.name}!`
+      );
+      const targetUrl = userType === "admin" && callbackUrl === "/" ? "/admin" : callbackUrl;
+      router.push(targetUrl);
+      router.refresh();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Login failed";
+      toast.error(msg);
+      setLoading(false);
     }
   };
 
@@ -60,24 +84,45 @@ function LoginForm() {
         </p>
       </div>
 
-      {/* Quick Fill Credentials Buttons for easy testing */}
-      <div className="mb-5 p-3 rounded-[8px] bg-[#FAF9F6] border border-[#E8E8E8] text-xs">
-        <p className="font-bold text-[#1C1C1C] mb-2 text-[11px]">Quick Credentials Demo:</p>
-        <div className="flex gap-2">
+      {/* 1-Click Browser Fake Login */}
+      <div className="mb-5 p-3.5 rounded-[8px] bg-[#FAF9F6] border border-[#E8E8E8] text-xs">
+        <div className="flex items-center justify-between mb-2">
+          <p className="font-bold text-[#1C1C1C] text-[11px] flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-[#2E7D32] animate-pulse" />
+            1-Click Instant Login (No Database Needed):
+          </p>
+          <span className="text-[10px] text-[#696969] bg-[#FFFFFF] px-1.5 py-0.5 rounded border border-[#E8E8E8]">
+            Demo Mode
+          </span>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
           <button
             type="button"
-            onClick={() => fillQuickCreds("demo")}
-            className="flex-1 py-1 px-2 rounded-[6px] bg-[#FFFFFF] border border-[#E8E8E8] font-semibold text-[#1C1C1C] hover:border-[#1C1C1C] cursor-pointer"
+            disabled={loading}
+            onClick={() => handleQuickLogin("demo")}
+            className="py-2.5 px-2 rounded-[6px] bg-[#FFFFFF] border border-[#E8E8E8] font-bold text-xs text-[#1C1C1C] hover:border-[#1C1C1C] hover:bg-[#FAF9F6] transition-all cursor-pointer shadow-2xs flex flex-col items-center justify-center gap-0.5 disabled:opacity-50"
           >
-            Demo User
+            <span>👤 Demo User</span>
+            <span className="text-[10px] text-[#696969] font-normal">Customer Mode</span>
           </button>
           <button
             type="button"
-            onClick={() => fillQuickCreds("admin")}
-            className="flex-1 py-1 px-2 rounded-[6px] bg-[#FFFFFF] border border-[#E8E8E8] font-semibold text-[#E23744] hover:border-[#E23744] cursor-pointer"
+            disabled={loading}
+            onClick={() => handleQuickLogin("admin")}
+            className="py-2.5 px-2 rounded-[6px] bg-[#FFFFFF] border border-[#E23744]/40 font-bold text-xs text-[#E23744] hover:border-[#E23744] hover:bg-[#E23744]/5 transition-all cursor-pointer shadow-2xs flex flex-col items-center justify-center gap-0.5 disabled:opacity-50"
           >
-            Admin User
+            <span>👑 Admin User</span>
+            <span className="text-[10px] text-[#E23744]/70 font-normal">Dashboard Mode</span>
           </button>
+        </div>
+      </div>
+
+      <div className="relative my-4">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-[#E8E8E8]" />
+        </div>
+        <div className="relative flex justify-center text-[10px] uppercase font-bold text-[#696969]">
+          <span className="bg-[#FFFFFF] px-2">or sign in with credentials</span>
         </div>
       </div>
 
