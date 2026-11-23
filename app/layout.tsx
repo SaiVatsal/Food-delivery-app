@@ -1,6 +1,11 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import { ToastProvider } from "@/contexts/ToastContext";
+import { LocationProvider } from "@/contexts/LocationContext";
+import { CartProvider } from "@/contexts/CartContext";
+import { Navbar } from "@/components/Navbar";
+import { CartDrawer } from "@/components/CartDrawer";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -8,8 +13,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Food Delivery App",
-  description: "Zomato & Swiggy inspired full-stack food delivery application",
+  title: "Zwiggy | Fastest Food Delivery Near You",
+  description: "Order biryani, pizza, north Indian and south Indian meals from top restaurants with live tracking.",
 };
 
 export default function RootLayout({
@@ -19,8 +24,16 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${inter.className} min-h-screen bg-[#FAF9F6] text-[#1C1C1C] antialiased`}>
-        {children}
+      <body className={`${inter.className} min-h-screen bg-[#FAF9F6] text-[#1C1C1C] antialiased flex flex-col`}>
+        <ToastProvider>
+          <LocationProvider>
+            <CartProvider>
+              <Navbar />
+              <div className="flex-1 pb-16 sm:pb-0">{children}</div>
+              <CartDrawer />
+            </CartProvider>
+          </LocationProvider>
+        </ToastProvider>
       </body>
     </html>
   );
