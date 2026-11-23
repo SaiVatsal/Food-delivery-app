@@ -12,70 +12,70 @@ export interface DeliveryPartnerStatic {
 }
 
 export const CITY_CENTRE: CityCentre = {
-  name: "Bengaluru",
-  lat: 12.9716,
-  lng: 77.5946,
+  name: "Vijayawada (KL University)",
+  lat: 16.4422,
+  lng: 80.6225,
 };
 
 export const SEEDED_DELIVERY_PARTNERS: DeliveryPartnerStatic[] = [
   {
     name: "Ramesh Kumar",
     phone: "98XXXXXX21",
-    vehicleNo: "KA-01-EA-1021",
+    vehicleNo: "AP-16-EA-1021",
     rating: 4.8,
   },
   {
     name: "Suresh Patel",
     phone: "98XXXXXX34",
-    vehicleNo: "KA-02-MB-4534",
+    vehicleNo: "AP-16-MB-4534",
     rating: 4.9,
   },
   {
     name: "Priya Sharma",
     phone: "97XXXXXX56",
-    vehicleNo: "KA-03-TC-8856",
+    vehicleNo: "AP-16-TC-8856",
     rating: 4.7,
   },
   {
     name: "Amit Verma",
     phone: "99XXXXXX78",
-    vehicleNo: "KA-04-JD-1278",
+    vehicleNo: "AP-16-JD-1278",
     rating: 4.9,
   },
   {
     name: "Deepa Rao",
     phone: "96XXXXXX90",
-    vehicleNo: "KA-05-KN-3490",
+    vehicleNo: "AP-16-KN-3490",
     rating: 4.8,
   },
   {
     name: "Vikram Singh",
     phone: "98XXXXXX12",
-    vehicleNo: "KA-01-PL-5612",
+    vehicleNo: "AP-16-PL-5612",
     rating: 4.6,
   },
   {
     name: "Rajesh Nair",
     phone: "97XXXXXX43",
-    vehicleNo: "KA-02-RX-7843",
+    vehicleNo: "AP-16-RX-7843",
     rating: 4.9,
   },
   {
     name: "Anjali Joshi",
     phone: "99XXXXXX65",
-    vehicleNo: "KA-03-QW-9065",
+    vehicleNo: "AP-16-QW-9065",
     rating: 4.8,
   },
   {
     name: "Mohammed Ali",
     phone: "96XXXXXX87",
-    vehicleNo: "KA-04-VB-2387",
+    vehicleNo: "AP-16-VB-2387",
     rating: 4.7,
   },
   {
     name: "Karthik Reddy",
     phone: "98XXXXXX09",
-    vehicleNo: "KA-05-ZX-6709",
+    vehicleNo: "AP-16-ZX-6709",
     rating: 4.9,
   },
 ];

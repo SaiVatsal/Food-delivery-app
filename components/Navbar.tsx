@@ -36,7 +36,15 @@ interface SearchResultMenuItem {
   };
 }
 
-const CITIES = ["Bengaluru", "Mumbai", "Delhi", "Hyderabad", "Pune"] as const;
+const CITIES = [
+  "Vijayawada (KL University)",
+  "Vijayawada",
+  "Hyderabad",
+  "Bengaluru",
+  "Mumbai",
+  "Delhi",
+  "Pune",
+] as const;
 
 export function Navbar() {
   const router = useRouter();

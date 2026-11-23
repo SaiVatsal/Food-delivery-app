@@ -138,7 +138,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   };
 
   const clearCart = () => {
-    persistCart([]);
+    setItems([]);
+    setIsDrawerOpen(false);
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.removeItem(CART_STORAGE_KEY);
+        localStorage.setItem(CART_STORAGE_KEY, JSON.stringify([]));
+      } catch {
+        // Ignore storage write error
+      }
+    }
   };
 
   return (

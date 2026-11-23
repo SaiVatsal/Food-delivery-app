@@ -116,7 +116,7 @@ export async function POST(request: Request) {
         location: CITY_CENTRE.name,
         coordinates: {
           type: "Point" as const,
-          coordinates: [77.6408, 12.9784] as [number, number], // [lng, lat] Indiranagar (~4.8 km)
+          coordinates: [80.6240, 16.4450] as [number, number], // [lng, lat] KL University Vaddeswaram (~0.3 km)
         },
         isOpen: true,
         dishes: [
@@ -168,7 +168,7 @@ export async function POST(request: Request) {
         location: CITY_CENTRE.name,
         coordinates: {
           type: "Point" as const,
-          coordinates: [77.6067, 12.9654] as [number, number], // [lng, lat] Richmond Rd (~1.5 km)
+          coordinates: [80.6210, 16.4395] as [number, number], // [lng, lat] KL Green Fields (~0.4 km)
         },
         isOpen: true,
         dishes: [
@@ -220,7 +220,7 @@ export async function POST(request: Request) {
         location: CITY_CENTRE.name,
         coordinates: {
           type: "Point" as const,
-          coordinates: [77.6245, 12.9352] as [number, number], // [lng, lat] Koramangala (~4.9 km)
+          coordinates: [80.6190, 16.4480] as [number, number], // [lng, lat] KL Student Hub (~0.7 km)
         },
         isOpen: true,
         dishes: [
@@ -272,7 +272,7 @@ export async function POST(request: Request) {
         location: CITY_CENTRE.name,
         coordinates: {
           type: "Point" as const,
-          coordinates: [77.6071, 12.9738] as [number, number], // [lng, lat] Brigade Rd (~1.4 km)
+          coordinates: [80.6280, 16.4410] as [number, number], // [lng, lat] Tadepalle Bypass (~0.6 km)
         },
         isOpen: true,
         dishes: [

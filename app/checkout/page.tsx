@@ -11,7 +11,7 @@ import { CheckoutMapWrapper } from "@/components/CheckoutMapWrapper";
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { items, restaurantName, totalAmount, clearCart, mounted } = useCart();
+  const { items, restaurantName, totalAmount, clearCart, closeDrawer, mounted } = useCart();
   const { location } = useLocation();
   const toast = useToast();
 
@@ -88,6 +88,15 @@ export default function CheckoutPage() {
 
       toast.success("Order placed successfully! Connecting to driver...");
       clearCart();
+      closeDrawer();
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.removeItem("fd_cart_state");
+          localStorage.setItem("fd_cart_state", "[]");
+        } catch {
+          // Ignore
+        }
+      }
       router.push(`/orders/${data.order._id}`);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Error placing order";

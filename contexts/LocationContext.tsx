@@ -46,7 +46,18 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
       if (stored) {
         const parsed = JSON.parse(stored) as LocationState;
         if (parsed && typeof parsed.city === "string") {
-          setLocation(parsed);
+          // Auto-migrate previous default to new default
+          if (parsed.city === "Bengaluru") {
+            const migrated: LocationState = {
+              city: CITY_CENTRE.name,
+              coords: null,
+              mode: "city",
+            };
+            setLocation(migrated);
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
+          } else {
+            setLocation(parsed);
+          }
         }
       }
     } catch {

@@ -3,6 +3,7 @@
 import React, { useEffect, useState, use } from "react";
 import Link from "next/link";
 import { useToast } from "@/contexts/ToastContext";
+import { useCart } from "@/contexts/CartContext";
 import { geoJsonToLatLng } from "@/lib/geo";
 import { TrackingMapWrapper } from "@/components/TrackingMapWrapper";
 
@@ -50,12 +51,19 @@ export default function OrderTrackingPage({
 }) {
   const { id } = use(params);
   const toast = useToast();
+  const { clearCart, closeDrawer } = useCart();
 
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [clockOffset, setClockOffset] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [remainingMinutes, setRemainingMinutes] = useState<number>(5);
+
+  // Ensure cart is cleared upon arriving on tracking page after placement
+  useEffect(() => {
+    clearCart();
+    closeDrawer();
+  }, [clearCart, closeDrawer]);
 
   const fetchOrder = async () => {
     try {

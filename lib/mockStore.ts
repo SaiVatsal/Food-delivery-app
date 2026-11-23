@@ -97,7 +97,7 @@ function initializeMockData(): MockStoreState {
       email: "charan@admin.com",
       password: "Bitcoin@100",
       role: "admin",
-      address: "Tastevio HQ, Indiranagar 100 Feet Rd, Bengaluru",
+      address: "Tastevio Admin Office, KL University Gate, Vijayawada",
     },
     {
       id: "usr_admin_alias",
@@ -105,7 +105,7 @@ function initializeMockData(): MockStoreState {
       email: "admin@example.com",
       password: "Bitcoin@100",
       role: "admin",
-      address: "Tastevio HQ, Indiranagar 100 Feet Rd, Bengaluru",
+      address: "Tastevio Admin Office, KL University Gate, Vijayawada",
     },
     {
       id: "usr_demo_001",
@@ -113,7 +113,7 @@ function initializeMockData(): MockStoreState {
       email: "charan@tastevio.com",
       password: "Bitcoin@100",
       role: "user",
-      address: "Flat 402, Green Glen Heights, Bengaluru",
+      address: "Hostel Block 4, Room 312, KL University, Vaddeswaram, Vijayawada",
     },
     {
       id: "usr_demo_002",
@@ -121,7 +121,7 @@ function initializeMockData(): MockStoreState {
       email: "sai@tastevio.com",
       password: "Bitcoin@100",
       role: "user",
-      address: "Plot 12, Rainbow Colony, Koramangala, Bengaluru",
+      address: "Room 205, Tulasi Residency, Beside KL University, Vijayawada",
     },
     {
       id: "usr_demo_003",
@@ -129,7 +129,7 @@ function initializeMockData(): MockStoreState {
       email: "sitaram@tastevio.com",
       password: "Bitcoin@100",
       role: "user",
-      address: "Villa 8, Sunrise Enclave, Whitefield, Bengaluru",
+      address: "Faculty Quarters F-12, KL University, Vaddeswaram, Vijayawada",
     },
     {
       id: "usr_demo_004",
@@ -137,7 +137,7 @@ function initializeMockData(): MockStoreState {
       email: "priya@tastevio.com",
       password: "Bitcoin@100",
       role: "user",
-      address: "Apartment 101, Lakeview Residency, HSR Layout, Bengaluru",
+      address: "Girls Hostel Block B, KL University, Vijayawada",
     },
     {
       id: "usr_demo_005",
@@ -145,7 +145,7 @@ function initializeMockData(): MockStoreState {
       email: "kalifia@tastevio.com",
       password: "Bitcoin@100",
       role: "user",
-      address: "Tower C, Palm Grove, JP Nagar, Bengaluru",
+      address: "Green Fields Road, Near KL University, Vijayawada",
     },
     {
       id: "usr_demo_005_alias",
@@ -153,7 +153,7 @@ function initializeMockData(): MockStoreState {
       email: "khalifa@tastevio.com",
       password: "Bitcoin@100",
       role: "user",
-      address: "Tower C, Palm Grove, JP Nagar, Bengaluru",
+      address: "Green Fields Road, Near KL University, Vijayawada",
     },
     {
       id: "usr_demo_legacy",
@@ -161,7 +161,7 @@ function initializeMockData(): MockStoreState {
       email: "demo@example.com",
       password: "Bitcoin@100",
       role: "user",
-      address: "Flat 402, Green Glen Heights, Bengaluru",
+      address: "Hostel Block 4, Room 312, KL University, Vaddeswaram, Vijayawada",
     },
   ];
 
@@ -173,11 +173,11 @@ function initializeMockData(): MockStoreState {
       cuisine: ["Biryani", "North Indian"],
       image: RESTAURANT_IMAGES.biryani,
       rating: 4.6,
-      deliveryTime: 32,
+      deliveryTime: 25,
       location: CITY_CENTRE.name,
       coordinates: {
         type: "Point",
-        coordinates: [77.6408, 12.9784],
+        coordinates: [80.624, 16.445], // ~0.3 km from KL University
       },
       isOpen: true,
     },
@@ -188,11 +188,11 @@ function initializeMockData(): MockStoreState {
       cuisine: ["South Indian"],
       image: RESTAURANT_IMAGES.southIndian,
       rating: 4.8,
-      deliveryTime: 20,
+      deliveryTime: 18,
       location: CITY_CENTRE.name,
       coordinates: {
         type: "Point",
-        coordinates: [77.6067, 12.9654],
+        coordinates: [80.621, 16.4395], // ~0.4 km from KL University
       },
       isOpen: true,
     },
@@ -203,11 +203,11 @@ function initializeMockData(): MockStoreState {
       cuisine: ["Pizza"],
       image: RESTAURANT_IMAGES.italian,
       rating: 4.7,
-      deliveryTime: 35,
+      deliveryTime: 30,
       location: CITY_CENTRE.name,
       coordinates: {
         type: "Point",
-        coordinates: [77.6245, 12.9352],
+        coordinates: [80.619, 16.448], // ~0.7 km from KL University
       },
       isOpen: true,
     },
@@ -218,11 +218,11 @@ function initializeMockData(): MockStoreState {
       cuisine: ["Burgers"],
       image: RESTAURANT_IMAGES.burgers,
       rating: 4.5,
-      deliveryTime: 25,
+      deliveryTime: 22,
       location: CITY_CENTRE.name,
       coordinates: {
         type: "Point",
-        coordinates: [77.6071, 12.9738],
+        coordinates: [80.628, 16.441], // ~0.6 km from KL University
       },
       isOpen: true,
     },
@@ -425,7 +425,7 @@ function initializeMockData(): MockStoreState {
       location: CITY_CENTRE.name,
       coordinates: {
         type: "Point",
-        coordinates: [77.6408, 12.9784],
+        coordinates: [80.624, 16.445],
       },
     },
     items: [
@@ -443,10 +443,10 @@ function initializeMockData(): MockStoreState {
       },
     ],
     totalAmount: 720,
-    deliveryAddress: "Flat 402, Green Glen Heights, Bengaluru",
+    deliveryAddress: "Hostel Block 4, KL University, Vaddeswaram, Vijayawada",
     deliveryCoordinates: {
-      lat: 12.9716,
-      lng: 77.5946,
+      lat: 16.4422,
+      lng: 80.6225,
     },
     deliveryPartner: {
       name: SEEDED_DELIVERY_PARTNERS[0].name,
