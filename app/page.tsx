@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useLocation } from "@/contexts/LocationContext";
 import { FoodImage } from "@/components/FoodImage";
 import { CUISINES } from "@/lib/constants";
+import { ThreeDSection } from "@/components/ThreeDSection";
 
 interface RestaurantCardData {
   _id: string;
@@ -231,6 +232,9 @@ export default function HomePage() {
           ))}
         </div>
       )}
+
+      {/* 3D Animations & Telemetry Showcase at Last */}
+      <ThreeDSection />
     </main>
   );
 }
